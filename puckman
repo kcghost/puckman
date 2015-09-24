@@ -1,0 +1,43 @@
+#!/bin/bash
+# This file is in the public domain.
+
+# AUR integration?
+
+usage="Usage: puckman [update,install,remove,clean,list,upgrade]\n\n\
+puckman update            == pacman -Sy\n\
+puckman install <package> == pacman -S <package>\n\
+puckman remove  <package> == pacman -Rsc <package>\n\
+puckman clean             == Remove orphan packages\n\
+puckman upgrade           == pacman -Syu\n\
+puckman list              == List explicitly installed packages"
+
+case "$1" in
+	update)
+		\pacman -Sy;;
+	install)
+		if [[ -z "$2" ]]; then
+			echo -e $usage
+		else
+			\pacman -Sy $2
+		fi;;
+	remove)
+		if [[ -z "$2" ]]; then
+			echo -e $usage
+		else
+			\pacman -Rsc $2
+		fi;;
+	clean)
+		orphans="$(pacman -Qqdt)"
+		if [[ -z "$ophans" ]]; then
+			echo "No orphans to clean!"
+		else
+			pacman -Rsc $(ophans)
+		fi;;
+	upgrade)
+		\pacman -Syu;;
+	list)
+		\pacman -Qei | awk '/^Name/ { name=$3 } /^Groups/ { if ( $3 != "base" && $3 != "base-devel" ) { print name } }';;
+	*)
+		echo -e $usage;;
+
+esac
