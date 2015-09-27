@@ -1,7 +1,23 @@
 #!/bin/bash
 # This file is in the public domain.
 
-# AUR integration?
+# TODO: Consider AUR RPC functionality
+# https://aur.archlinux.org/rpc.php
+# TODO: AUR dependency evaluation
+# TODO: --no-aur option? config option?
+# TODO: Distinguish AUR packages in list
+# TODO: Ask before installing AUR packages? config option if so
+# TODO: Fix makepkg for root
+
+aur_install()
+{
+	cd /tmp
+	curl https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz | tar xz
+	cd $1
+	makepkg $1 -si
+	cd /tmp
+	rm -Rf $1
+}
 
 usage="Usage: puckman [update,install,remove,clean,list,upgrade]\n\n\
 puckman update            == pacman -Sy\n\
@@ -13,18 +29,27 @@ puckman list              == List explicitly installed packages"
 
 case "$1" in
 	update)
-		\pacman -Sy;;
+		pacman -Sy
+		echo "Updating AUR package list..."
+		# Wanted to be efficient and use wget's timestamp option (-N), but AUR doesnt use the Last-modified header
+		wget https://aur.archlinux.org/packages.gz -q --output-document - | gzip -d > /var/lib/puckman/aur_packages;;
 	install)
 		if [[ -z "$2" ]]; then
 			echo -e $usage
 		else
-			\pacman -Sy $2
+			# Determine whether this package is in the AUR package list, if not assume official
+			if grep -Fxq "$2" /var/lib/puckman/aur_packages 2>/dev/null
+			then
+				aur_install $2
+			else
+				pacman -Sy $2
+			fi
 		fi;;
 	remove)
 		if [[ -z "$2" ]]; then
 			echo -e $usage
 		else
-			\pacman -Rsc $2
+			pacman -Rsc $2
 		fi;;
 	clean)
 		orphans="$(pacman -Qqdt)"
@@ -34,9 +59,9 @@ case "$1" in
 			pacman -Rsc $(ophans)
 		fi;;
 	upgrade)
-		\pacman -Syu;;
+		pacman -Syu;;
 	list)
-		\pacman -Qei | awk '/^Name/ { name=$3 } /^Groups/ { if ( $3 != "base" && $3 != "base-devel" ) { print name } }';;
+		pacman -Qei | awk '/^Name/ { name=$3 } /^Groups/ { if ( $3 != "base" && $3 != "base-devel" ) { print name } }';;
 	*)
 		echo -e $usage;;
 

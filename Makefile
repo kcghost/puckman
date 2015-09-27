@@ -46,6 +46,7 @@ man8ext ?= .8
 srcdir ?= $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 completion_dir ?= /usr/share/bash-completion/completions
+state_dir ?= /var/lib
 
 INSTALL ?= install
 INSTALL_PROGRAM ?= $(INSTALL)
@@ -61,3 +62,4 @@ install:
 	$(INSTALL_PROGRAM) puckman $(DESTDIR)$(bindir)/puckman
 	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/bash_completion.d/
 	$(INSTALL_DATA) puckman_completion $(DESTDIR)$(completion_dir)/puckman
+	$(MKDIR_P) $(DESTDIR)$(state_dir)/puckman/

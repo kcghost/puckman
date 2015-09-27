@@ -32,6 +32,7 @@ _puckman()
 		install)
 			_arch_compgen "$(
 				\pacman -Slq 2>/dev/null
+				\tail -n+2 /var/lib/puckman/aur_packages 2>/dev/null
 			)";;
 		remove)
 			_arch_compgen "$(
