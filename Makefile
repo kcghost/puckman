@@ -45,7 +45,8 @@ man8ext ?= .8
 
 srcdir ?= $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-completion_dir ?= /usr/share/bash-completion/completions
+completion_top_dir ?= /usr/share/bash-completion
+completion_dir ?= $(completion_top_dir)/completions
 state_dir ?= /var/lib
 
 INSTALL ?= install
@@ -60,6 +61,13 @@ print-%: ; @echo $*=$($*)
 
 install:
 	$(INSTALL_PROGRAM) puckman $(DESTDIR)$(bindir)/puckman
-	$(MKDIR_P) $(DESTDIR)$(sysconfdir)/bash_completion.d/
-	$(INSTALL_DATA) puckman_completion $(DESTDIR)$(completion_dir)/puckman
 	$(MKDIR_P) $(DESTDIR)$(state_dir)/puckman/
+	$(MKDIR_P) $(DESTDIR)$(completion_dir)
+	$(INSTALL_DATA) puckman_completion $(DESTDIR)$(completion_dir)/puckman
+
+uninstall:
+	-rm -f $(DESTDIR)$(bindir)/puckman
+	-rm -Rf $(DESTDIR)$(state_dir)/puckman/
+	-rm -f $(DESTDIR)$(completion_dir)/puckman
+	-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(completion_dir)
+	-rmdir --ignore-fail-on-non-empty $(DESTDIR)$(completion_top_dir)
