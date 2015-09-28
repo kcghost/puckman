@@ -22,6 +22,11 @@ Then just run:
 make install
 ```
 
+Uninstall with:
+```
+make uninstall
+```
+
 Usage
 -----
 `puckman update` is the equivalent of `pacman -Sy` and updates the package database. It also grabs the AUR package list, be sure to do this explicitly if you want to see AUR packages for the `install` completion.
@@ -41,7 +46,6 @@ If you have the `bash-completion` package installed, you may type `puckman <TAB>
 Upcoming
 --------
 I plan on improving some AUR related functionality, perhaps distinguising it from official packages a little more.
-I should also add support for uninstalling in the Makefile.
 
 License
 -------
