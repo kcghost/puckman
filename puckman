@@ -3,13 +3,13 @@
 
 aur_install()
 {
-	cd /tmp
+	cd /tmp || exit
 	# Clean up possible interrupted install
-	rm -Rf $1
-	curl https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz | tar xz
-	chown nobody $1
-	chgrp nobody $1
-	cd $1
+	rm -Rf "$1"
+	curl "https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz" | tar xz
+	chown nobody "$1"
+	chgrp nobody "$1"
+	cd "$1" || exit
 	# Run makepkg as nobody, so it doesn't complain about running as root (and also without breaking the rules and using fakeroot)
 	# pass "-si" with set, and pass the name of the script as an argument so that $0 points to the name of the script (used for fakeroot)
 	# Hook into the script by overriding su and sudo so that commands that require root privileges (installing packages) are tagged and sent to this script for modification/execution
@@ -33,8 +33,8 @@ aur_install()
 			fi
 		done
 	}
-	cd /tmp
-	rm -Rf $1
+	cd /tmp || exit
+	rm -Rf "$1"
 }
 
 usage="Usage: puckman [update,install,remove,clean,list,upgrade]\n\n\
@@ -50,7 +50,7 @@ if [[ $EUID -ne 0 ]]; then
 	case "$1" in
 		update|install|remove|clean|upgrade)
 			if type -p sudo >/dev/null; then
-				sudo $0 $@
+				sudo "$0" "$@"
 			else
 				su root -c "$0 $*"
 			fi
@@ -64,37 +64,43 @@ case "$1" in
 		pacman -Sy
 		echo "Updating AUR package list..."
 		# Wanted to be efficient and use wget's timestamp option (-N), but AUR doesnt use the Last-modified header
-		wget https://aur.archlinux.org/packages.gz -q --output-document - | gzip -d > /var/lib/puckman/aur_packages;;
+		wget https://aur.archlinux.org/packages.gz -q --output-document - | gzip -d > /var/lib/puckman/aur_packages
+		;;
 	install)
 		if [[ -z "$2" ]]; then
-			echo -e $usage
+			echo -e "${usage}"
 		else
 			# Determine whether this package is in the AUR package list, if not assume official
-			if grep -Fxq "$2" /var/lib/puckman/aur_packages 2>/dev/null
-			then
-				aur_install $2
+			if grep -Fxq "$2" /var/lib/puckman/aur_packages 2>/dev/null; then
+				aur_install "$2"
 			else
-				pacman -Sy $2
+				pacman -Sy "$2"
 			fi
-		fi;;
+		fi
+		;;
 	remove)
 		if [[ -z "$2" ]]; then
-			echo -e $usage
+			echo -e "${usage}"
 		else
-			pacman -Rsc $2
-		fi;;
+			pacman -Rsc "$2"
+		fi
+		;;
 	clean)
 		orphans="$(pacman -Qqdt)"
-		if [[ -z "$ophans" ]]; then
+		if [[ -z "$orphans" ]]; then
 			echo "No orphans to clean!"
 		else
-			pacman -Rsc $(ophans)
-		fi;;
+			pacman -Rsc "$(orphans)"
+		fi
+		;;
 	upgrade)
-		pacman -Syu;;
+		pacman -Syu
+		;;
 	list)
-		pacman -Qei | awk '/^Name/ { name=$3 } /^Groups/ { if ( $3 != "base" && $3 != "base-devel" ) { print name } }';;
+		pacman -Qei | awk '/^Name/ { name=$3 } /^Groups/ { if ( $3 != "base" && $3 != "base-devel" ) { print name } }'
+		;;
 	*)
-		echo -e $usage;;
+		echo -e "${usage}"
+		;;
 
 esac
