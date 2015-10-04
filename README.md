@@ -5,11 +5,6 @@ Its aim is to provide a simpler interface for the most used functionality.
 
 Install
 -------
-Proper operation requires `wget`:
-```
-pacman -Sy wget
-```
-
 It's optional, but I highly recommend you install the `bash-completion` package:
 ```
 pacman -Sy bash-completion

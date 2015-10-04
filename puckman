@@ -64,7 +64,7 @@ case "$1" in
 		pacman -Sy
 		echo "Updating AUR package list..."
 		# Wanted to be efficient and use wget's timestamp option (-N), but AUR doesnt use the Last-modified header
-		wget https://aur.archlinux.org/packages.gz -q --output-document - | gzip -d > /var/lib/puckman/aur_packages
+		curl https://aur.archlinux.org/packages.gz | gzip -d > /var/lib/puckman/aur_packages
 		;;
 	install)
 		if [[ -z "$2" ]]; then
