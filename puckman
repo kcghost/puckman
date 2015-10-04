@@ -1,20 +1,38 @@
-#!/bin/bash
+#!/usr/bin/bash
 # This file is in the public domain.
-
-# TODO: Consider AUR RPC functionality
-# https://aur.archlinux.org/rpc.php
-# TODO: AUR dependency evaluation
-# TODO: --no-aur option? config option?
-# TODO: Distinguish AUR packages in list
-# TODO: Ask before installing AUR packages? config option if so
-# TODO: Fix makepkg for root
 
 aur_install()
 {
 	cd /tmp
+	# Clean up possible interrupted install
+	rm -Rf $1
 	curl https://aur.archlinux.org/cgit/aur.git/snapshot/$1.tar.gz | tar xz
+	chown nobody $1
+	chgrp nobody $1
 	cd $1
-	makepkg $1 -si
+	# Run makepkg as nobody, so it doesn't complain about running as root (and also without breaking the rules and using fakeroot)
+	# pass "-si" with set, and pass the name of the script as an argument so that $0 points to the name of the script (used for fakeroot)
+	# Hook into the script by overriding su and sudo so that commands that require root privileges (installing packages) are tagged and sent to this script for modification/execution
+	# Stop the script with a blocking read while executing, and let the script move on by passing to it's fifo input.
+	mkfifo makepkg_comm
+	# TODO: Need return values for su/sudo functions
+	cat makepkg_comm | su nobody -s /usr/bin/bash -c \
+"function su { set -- "\$@"; echo "makepkg_comm\ \${@:3}"; read line; }\
+;function sudo { set -- "\$@"; echo "makepkg_comm\ \${@:1}"; read line; }\
+;set -- -si;source /usr/bin/makepkg" /usr/bin/makepkg |
+	{
+		while IFS= read -r line; do
+			if [[ "${line}" =~ makepkg_comm.* ]]; then
+				# TODO: Handle AUR dependencies
+				echo "Executing ${line#* }"
+				# Read input from the user, not from makepkg, otherwise prompts from pacman will not work
+				/usr/bin/bash -c "${line#* }" <&1
+				echo "" > makepkg_comm
+			else
+				echo "${line}"
+			fi
+		done
+	}
 	cd /tmp
 	rm -Rf $1
 }
@@ -26,6 +44,20 @@ puckman remove  <package> == pacman -Rsc <package>\n\
 puckman clean             == Remove orphan packages\n\
 puckman upgrade           == pacman -Syu\n\
 puckman list              == List explicitly installed packages"
+
+# Determine if we need superuser privileges
+if [[ $EUID -ne 0 ]]; then
+	case "$1" in
+		update|install|remove|clean|upgrade)
+			if type -p sudo >/dev/null; then
+				sudo $0 $@
+			else
+				su root -c "$0 $*"
+			fi
+			exit
+			;;
+	esac
+fi
 
 case "$1" in
 	update)
