@@ -16,18 +16,23 @@ aur_install()
 	# Stop the script with a blocking read while executing, and let the script move on by passing to it's fifo input.
 	mkfifo makepkg_comm
 	# TODO: Need return values for su/sudo functions
-	cat makepkg_comm | su nobody -s /usr/bin/bash -c \
-"function su { set -- "\$@"; echo "makepkg_comm\ \${@:3}"; read line; }\
-;function sudo { set -- "\$@"; echo "makepkg_comm\ \${@:1}"; read line; }\
+	tail -f makepkg_comm | su nobody -s /usr/bin/bash -c \
+"function su { set -- "\$@"; echo "makepkg_execute\ \${@:3}"; read line; }\
+;function sudo { set -- "\$@"; echo "makepkg_execute\ \${@:1}"; read line; }\
+;function exit { echo "makepkg_exit\ \$1"; command exit \$1; }\
 ;set -- -si;source /usr/bin/makepkg" /usr/bin/makepkg |
 	{
 		while IFS= read -r line; do
-			if [[ "${line}" =~ makepkg_comm.* ]]; then
+			if [[ "${line}" =~ makepkg_execute.* ]]; then
 				# TODO: Handle AUR dependencies
-				echo "Executing ${line#* }"
+				echo "Executing from puckman: ${line#* }"
 				# Read input from the user, not from makepkg, otherwise prompts from pacman will not work
 				/usr/bin/bash -c "${line#* }" <&1
 				echo "" > makepkg_comm
+			elif [[ "${line}" =~ makepkg_exit.* ]]; then
+				# Kill the tail so we can move on
+				pkill -9 -P $$ tail
+				break
 			else
 				echo "${line}"
 			fi
