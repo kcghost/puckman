@@ -92,10 +92,10 @@ case "$1" in
 		;;
 	clean)
 		orphans="$(pacman -Qqdt)"
-		if [[ -z "$orphans" ]]; then
+		if [[ -z "${orphans}" ]]; then
 			echo "No orphans to clean!"
 		else
-			pacman -Rsc "$(orphans)"
+			pacman -Rsc ${orphans}
 		fi
 		;;
 	upgrade)
