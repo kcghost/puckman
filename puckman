@@ -46,7 +46,7 @@ usage="Usage: puckman [update,install,remove,clean,list,upgrade]\n\n\
 puckman update            == pacman -Sy\n\
 puckman install <package> == pacman -S <package>\n\
 puckman remove  <package> == pacman -Rsc <package>\n\
-puckman clean             == Remove orphan packages\n\
+puckman clean             == Remove orphan packages and cached packages that are not installed\n\
 puckman upgrade           == pacman -Syu\n\
 puckman list              == List explicitly installed packages"
 
@@ -97,6 +97,7 @@ case "$1" in
 		else
 			pacman -Rsc ${orphans}
 		fi
+		pacman -Sc
 		;;
 	upgrade)
 		pacman -Syu
