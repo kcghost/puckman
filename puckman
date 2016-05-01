@@ -10,36 +10,32 @@ aur_install()
 	chown nobody "$1"
 	chgrp nobody "$1"
 	cd "$1" || exit
-	# Run makepkg as nobody, so it doesn't complain about running as root (and also without breaking the rules and using fakeroot)
-	# pass "-si" with set, and pass the name of the script as an argument so that $0 points to the name of the script (used for fakeroot)
-	# Hook into the script by overriding su and sudo so that commands that require root privileges (installing packages) are tagged and sent to this script for modification/execution
-	# Stop the script with a blocking read while executing, and let the script move on by passing to it's fifo input.
-	mkfifo makepkg_comm
-	# TODO: Need return values for su/sudo functions
-	tail -f makepkg_comm | su nobody -s /usr/bin/bash -c \
-"function su { set -- "\$@"; echo "makepkg_execute\ \${@:3}"; read line; }\
-;function sudo { set -- "\$@"; echo "makepkg_execute\ \${@:1}"; read line; }\
-;function exit { echo "makepkg_exit\ \$1"; command exit \$1; }\
-;set -- -si;source /usr/bin/makepkg" /usr/bin/makepkg |
-	{
-		while IFS= read -r line; do
-			if [[ "${line}" =~ makepkg_execute.* ]]; then
-				# TODO: Handle AUR dependencies
-				echo "Executing from puckman: ${line#* }"
-				# Read input from the user, not from makepkg, otherwise prompts from pacman will not work
-				/usr/bin/bash -c "${line#* }" <&1
-				echo "" > makepkg_comm
-			elif [[ "${line}" =~ makepkg_exit.* ]]; then
-				# Kill the tail so we can move on
-				pkill -9 -P $$ tail
-				break
-			else
-				echo "${line}"
-			fi
-		done
-	}
-	cd /tmp || exit
-	rm -Rf "$1"
+
+	# Get the package list
+	pkglist=$(sudo -u nobody makepkg --packagelist | xargs)
+
+	# Get the dependencies required for building that do not yet exist on the system, they will be removed after a successful build
+	makedeps=$(sudo -u nobody makepkg --printsrcinfo | grep makedepends | grep -o "[a-Z0-9@._+-]*$" | xargs pacman -T | xargs)
+
+	# Get all dependencies (build and runtime), that do not yet exist on the system
+	deps=$(sudo -u nobody makepkg --printsrcinfo | grep depends | grep -o "[a-Z0-9@._+-]*$" | xargs pacman -T | xargs)
+	echo "Dependencies for this package: ${deps}"
+
+	# Install dependencies using pacman
+	pacman -S --asdeps ${deps}
+
+	# Build as nobody
+	sudo -u nobody makepkg || exit
+
+	# Install the built package
+	for pkg in ${pkglist}; do
+		if [ -f ${pkg}* ]; then
+			pacman -U ${pkg}*
+		fi
+	done
+
+	# Remove makedeps
+	pacman -Rn ${makedeps}
 }
 
 usage="Usage: puckman [update,install,remove,clean,list,upgrade]\n\n\
@@ -68,7 +64,6 @@ case "$1" in
 	update)
 		pacman -Sy
 		echo "Updating AUR package list..."
-		# Wanted to be efficient and use wget's timestamp option (-N), but AUR doesnt use the Last-modified header
 		curl https://aur.archlinux.org/packages.gz | gzip -d > /var/lib/puckman/aur_packages
 		;;
 	install)
